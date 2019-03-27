@@ -1,303 +1,299 @@
 <?php
 
-
-use \Psr\Http\Message\ServerRequestInterface as Request;
 use \Psr\Http\Message\ResponseInterface as Response;
+use \Psr\Http\Message\ServerRequestInterface as Request;
 
 require '../vendor/autoload.php';
 
 require '../includes/DbOperations.php';
 
 $app = new \Slim\App([
-    'settings'=>[
-        'displayErrorDetails'=>true
-    ]
+	'settings' => [
+		'displayErrorDetails' => true,
+	],
 ]);
 
-$app->add(new Tuupola\Middleware\HttpBasicAuthentication([
-    "secure"=>false,
-    "users" => [
-        "belalkhan" => "123456",
-    ]
-]));
+// $app->add(new Tuupola\Middleware\HttpBasicAuthentication([
+//     "secure"=>false,
+//     "users" => [
+//         "belalkhan" => "123456",
+//     ]
+// ]));
 
-/* 
-    endpoint: createuser
-    parameters: email, password, name, school
-    method: POST
-*/
-$app->post('/createuser', function(Request $request, Response $response){
+/*
+endpoint: createuser
+parameters: email, password, name, school
+method: POST
+ */
+$app->post('/createuser', function (Request $request, Response $response) {
 
-    if(!haveEmptyParameters(array('email', 'password', 'name', 'school'), $request, $response)){
+	if (!haveEmptyParameters(array('email', 'password', 'name', 'school'), $request, $response)) {
 
-        $request_data = $request->getParsedBody(); 
+		$request_data = $request->getParsedBody();
 
-        $email = $request_data['email'];
-        $password = $request_data['password'];
-        $name = $request_data['name'];
-        $school = $request_data['school']; 
+		$email = $request_data['email'];
+		$password = $request_data['password'];
+		$name = $request_data['name'];
+		$school = $request_data['school'];
 
-        $hash_password = password_hash($password, PASSWORD_DEFAULT);
+		$encrypted_password = sha1($password);
 
-        $db = new DbOperations; 
+		$db = new DbOperations;
 
-        $result = $db->createUser($email, $hash_password, $name, $school);
-        
-        if($result == USER_CREATED){
+		$result = $db->createUser($email, $encrypted_password, $name, $school);
 
-            $message = array(); 
-            $message['error'] = false; 
-            $message['message'] = 'User created successfully';
+		if ($result == USER_CREATED) {
 
-            $response->write(json_encode($message));
+			$message = array();
+			$message['error'] = false;
+			$message['message'] = 'User created successfully';
 
-            return $response
-                        ->withHeader('Content-type', 'application/json')
-                        ->withStatus(201);
+			$response->write(json_encode($message));
 
-        }else if($result == USER_FAILURE){
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(201);
 
-            $message = array(); 
-            $message['error'] = true; 
-            $message['message'] = 'Some error occurred';
+		} else if ($result == USER_FAILURE) {
 
-            $response->write(json_encode($message));
+			$message = array();
+			$message['error'] = true;
+			$message['message'] = 'Some error occurred';
 
-            return $response
-                        ->withHeader('Content-type', 'application/json')
-                        ->withStatus(422);    
+			$response->write(json_encode($message));
 
-        }else if($result == USER_EXISTS){
-            $message = array(); 
-            $message['error'] = true; 
-            $message['message'] = 'User Already Exists';
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(422);
 
-            $response->write(json_encode($message));
+		} else if ($result == USER_EXISTS) {
+			$message = array();
+			$message['error'] = true;
+			$message['message'] = 'User Already Exists';
 
-            return $response
-                        ->withHeader('Content-type', 'application/json')
-                        ->withStatus(422);    
-        }
-    }
-    return $response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(422);    
+			$response->write(json_encode($message));
+
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(422);
+		}
+	}
+	return $response
+		->withHeader('Content-type', 'application/json')
+		->withStatus(422);
 });
 
-$app->post('/userlogin', function(Request $request, Response $response){
+$app->post('/userlogin', function (Request $request, Response $response) {
 
-    if(!haveEmptyParameters(array('email', 'password'), $request, $response)){
-        $request_data = $request->getParsedBody(); 
+	if (!haveEmptyParameters(array('email', 'password'), $request, $response)) {
+		$request_data = $request->getParsedBody();
 
-        $email = $request_data['email'];
-        $password = $request_data['password'];
-        
-        $db = new DbOperations; 
+		$email = $request_data['email'];
+		$password = $request_data['password'];
 
-        $result = $db->userLogin($email, $password);
+		$db = new DbOperations;
 
-        if($result == USER_AUTHENTICATED){
-            
-            $user = $db->getUserByEmail($email);
-            $response_data = array();
+		$result = $db->userLogin($email, $password);
 
-            $response_data['error']=false; 
-            $response_data['message'] = 'Login Successful';
-            $response_data['user']=$user; 
+		if ($result == USER_AUTHENTICATED) {
 
-            $response->write(json_encode($response_data));
+			$user = $db->getUserByEmail($email);
+			$response_data = array();
 
-            return $response
-                ->withHeader('Content-type', 'application/json')
-                ->withStatus(200);    
+			$response_data['error'] = false;
+			$response_data['message'] = 'Login Successful';
+			$response_data['user'] = $user;
 
-        }else if($result == USER_NOT_FOUND){
-            $response_data = array();
+			$response->write(json_encode($response_data));
 
-            $response_data['error']=true; 
-            $response_data['message'] = 'User not exist';
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(200);
 
-            $response->write(json_encode($response_data));
+		} else if ($result == USER_NOT_FOUND) {
+			$response_data = array();
 
-            return $response
-                ->withHeader('Content-type', 'application/json')
-                ->withStatus(200);    
+			$response_data['error'] = true;
+			$response_data['message'] = 'User not exist';
 
-        }else if($result == USER_PASSWORD_DO_NOT_MATCH){
-            $response_data = array();
+			$response->write(json_encode($response_data));
 
-            $response_data['error']=true; 
-            $response_data['message'] = 'Invalid credential';
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(200);
 
-            $response->write(json_encode($response_data));
+		} else if ($result == USER_PASSWORD_DO_NOT_MATCH) {
+			$response_data = array();
 
-            return $response
-                ->withHeader('Content-type', 'application/json')
-                ->withStatus(200);  
-        }
-    }
+			$response_data['error'] = true;
+			$response_data['message'] = 'Invalid credential';
 
-    return $response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(422);    
+			$response->write(json_encode($response_data));
+
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(200);
+		}
+	}
+
+	return $response
+		->withHeader('Content-type', 'application/json')
+		->withStatus(422);
 });
 
-$app->get('/allusers', function(Request $request, Response $response){
+$app->get('/allusers', function (Request $request, Response $response) {
 
-    $db = new DbOperations; 
+	$db = new DbOperations;
 
-    $users = $db->getAllUsers();
+	$users = $db->getAllUsers();
 
-    $response_data = array();
+	$response_data = array();
 
-    $response_data['error'] = false; 
-    $response_data['users'] = $users; 
+	$response_data['error'] = false;
+	$response_data['users'] = $users;
 
-    $response->write(json_encode($response_data));
+	$response->write(json_encode($response_data));
 
-    return $response
-    ->withHeader('Content-type', 'application/json')
-    ->withStatus(200);  
-
-});
-
-
-$app->put('/updateuser/{id}', function(Request $request, Response $response, array $args){
-
-    $id = $args['id'];
-
-    if(!haveEmptyParameters(array('email','name','school'), $request, $response)){
-
-        $request_data = $request->getParsedBody(); 
-        $email = $request_data['email'];
-        $name = $request_data['name'];
-        $school = $request_data['school']; 
-     
-
-        $db = new DbOperations; 
-
-        if($db->updateUser($email, $name, $school, $id)){
-            $response_data = array(); 
-            $response_data['error'] = false; 
-            $response_data['message'] = 'User Updated Successfully';
-            $user = $db->getUserByEmail($email);
-            $response_data['user'] = $user; 
-
-            $response->write(json_encode($response_data));
-
-            return $response
-            ->withHeader('Content-type', 'application/json')
-            ->withStatus(200);  
-        
-        }else{
-            $response_data = array(); 
-            $response_data['error'] = true; 
-            $response_data['message'] = 'Please try again later';
-            $user = $db->getUserByEmail($email);
-            $response_data['user'] = $user; 
-
-            $response->write(json_encode($response_data));
-
-            return $response
-            ->withHeader('Content-type', 'application/json')
-            ->withStatus(200);  
-              
-        }
-
-    }
-    
-    return $response
-    ->withHeader('Content-type', 'application/json')
-    ->withStatus(200);  
+	return $response
+		->withHeader('Content-type', 'application/json')
+		->withStatus(200);
 
 });
 
-$app->put('/updatepassword', function(Request $request, Response $response){
+$app->put('/updateuser/{id}', function (Request $request, Response $response, array $args) {
 
-    if(!haveEmptyParameters(array('currentpassword', 'newpassword', 'email'), $request, $response)){
-        
-        $request_data = $request->getParsedBody(); 
+	$id = $args['id'];
 
-        $currentpassword = $request_data['currentpassword'];
-        $newpassword = $request_data['newpassword'];
-        $email = $request_data['email']; 
+	if (!haveEmptyParameters(array('email', 'name', 'school'), $request, $response)) {
 
-        $db = new DbOperations; 
+		$request_data = $request->getParsedBody();
+		$email = $request_data['email'];
+		$name = $request_data['name'];
+		$school = $request_data['school'];
 
-        $result = $db->updatePassword($currentpassword, $newpassword, $email);
+		$db = new DbOperations;
 
-        if($result == PASSWORD_CHANGED){
-            $response_data = array(); 
-            $response_data['error'] = false;
-            $response_data['message'] = 'Password Changed';
-            $response->write(json_encode($response_data));
-            return $response->withHeader('Content-type', 'application/json')
-                            ->withStatus(200);
+		if ($db->updateUser($email, $name, $school, $id)) {
+			$response_data = array();
+			$response_data['error'] = false;
+			$response_data['message'] = 'User Updated Successfully';
+			$user = $db->getUserByEmail($email);
+			$response_data['user'] = $user;
 
-        }else if($result == PASSWORD_DO_NOT_MATCH){
-            $response_data = array(); 
-            $response_data['error'] = true;
-            $response_data['message'] = 'You have given wrong password';
-            $response->write(json_encode($response_data));
-            return $response->withHeader('Content-type', 'application/json')
-                            ->withStatus(200);
-        }else if($result == PASSWORD_NOT_CHANGED){
-            $response_data = array(); 
-            $response_data['error'] = true;
-            $response_data['message'] = 'Some error occurred';
-            $response->write(json_encode($response_data));
-            return $response->withHeader('Content-type', 'application/json')
-                            ->withStatus(200);
-        }
-    }
+			$response->write(json_encode($response_data));
 
-    return $response
-        ->withHeader('Content-type', 'application/json')
-        ->withStatus(422);  
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(200);
+
+		} else {
+			$response_data = array();
+			$response_data['error'] = true;
+			$response_data['message'] = 'Please try again later';
+			$user = $db->getUserByEmail($email);
+			$response_data['user'] = $user;
+
+			$response->write(json_encode($response_data));
+
+			return $response
+				->withHeader('Content-type', 'application/json')
+				->withStatus(200);
+
+		}
+
+	}
+
+	return $response
+		->withHeader('Content-type', 'application/json')
+		->withStatus(200);
+
 });
 
-$app->delete('/deleteuser/{id}', function(Request $request, Response $response, array $args){
-    $id = $args['id'];
+$app->put('/updatepassword', function (Request $request, Response $response) {
 
-    $db = new DbOperations; 
+	if (!haveEmptyParameters(array('currentpassword', 'newpassword', 'email'), $request, $response)) {
 
-    $response_data = array();
+		$request_data = $request->getParsedBody();
 
-    if($db->deleteUser($id)){
-        $response_data['error'] = false; 
-        $response_data['message'] = 'User has been deleted';    
-    }else{
-        $response_data['error'] = true; 
-        $response_data['message'] = 'Plase try again later';
-    }
+		$currentpassword = $request_data['currentpassword'];
+		$newpassword = $request_data['newpassword'];
+		$email = $request_data['email'];
 
-    $response->write(json_encode($response_data));
+		$db = new DbOperations;
 
-    return $response
-    ->withHeader('Content-type', 'application/json')
-    ->withStatus(200);
+		$result = $db->updatePassword($currentpassword, $newpassword, $email);
+
+		if ($result == PASSWORD_CHANGED) {
+			$response_data = array();
+			$response_data['error'] = false;
+			$response_data['message'] = 'Password Changed';
+			$response->write(json_encode($response_data));
+			return $response->withHeader('Content-type', 'application/json')
+				->withStatus(200);
+
+		} else if ($result == PASSWORD_DO_NOT_MATCH) {
+			$response_data = array();
+			$response_data['error'] = true;
+			$response_data['message'] = 'You have given wrong password';
+			$response->write(json_encode($response_data));
+			return $response->withHeader('Content-type', 'application/json')
+				->withStatus(200);
+		} else if ($result == PASSWORD_NOT_CHANGED) {
+			$response_data = array();
+			$response_data['error'] = true;
+			$response_data['message'] = 'Some error occurred';
+			$response->write(json_encode($response_data));
+			return $response->withHeader('Content-type', 'application/json')
+				->withStatus(200);
+		}
+	}
+
+	return $response
+		->withHeader('Content-type', 'application/json')
+		->withStatus(422);
 });
 
-function haveEmptyParameters($required_params, $request, $response){
-    $error = false; 
-    $error_params = '';
-    $request_params = $request->getParsedBody(); 
+$app->delete('/deleteuser/{id}', function (Request $request, Response $response, array $args) {
+	$id = $args['id'];
 
-    foreach($required_params as $param){
-        if(!isset($request_params[$param]) || strlen($request_params[$param])<=0){
-            $error = true; 
-            $error_params .= $param . ', ';
-        }
-    }
+	$db = new DbOperations;
 
-    if($error){
-        $error_detail = array();
-        $error_detail['error'] = true; 
-        $error_detail['message'] = 'Required parameters ' . substr($error_params, 0, -2) . ' are missing or empty';
-        $response->write(json_encode($error_detail));
-    }
-    return $error; 
+	$response_data = array();
+
+	if ($db->deleteUser($id)) {
+		$response_data['error'] = false;
+		$response_data['message'] = 'User has been deleted';
+	} else {
+		$response_data['error'] = true;
+		$response_data['message'] = 'Plase try again later';
+	}
+
+	$response->write(json_encode($response_data));
+
+	return $response
+		->withHeader('Content-type', 'application/json')
+		->withStatus(200);
+});
+
+function haveEmptyParameters($required_params, $request, $response) {
+	$error = false;
+	$error_params = '';
+	$request_params = $request->getParsedBody();
+
+	foreach ($required_params as $param) {
+		if (!isset($request_params[$param]) || strlen($request_params[$param]) <= 0) {
+			$error = true;
+			$error_params .= $param . ', ';
+		}
+	}
+
+	if ($error) {
+		$error_detail = array();
+		$error_detail['error'] = true;
+		$error_detail['message'] = 'Required parameters ' . substr($error_params, 0, -2) . ' are missing or empty';
+		$response->write(json_encode($error_detail));
+	}
+	return $error;
 }
 
 $app->run();
-
